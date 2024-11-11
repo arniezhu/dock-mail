@@ -1,0 +1,95 @@
+version: '3.8'
+
+services:
+  # OpenSMTPD
+  opensmtpd:
+    build:
+      context: .
+      dockerfile: ./opensmtpd/dockerfile
+      network: "host"
+    container_name: opensmtpd
+    restart: unless-stopped
+    ports:
+      - "25:25"        # SMTP
+      - "587:587"      # SMTP with STARTTLS
+    env_file:
+      - ./opensmtpd/.env
+    volumes:
+      - ./opensmtpd/entrypoint.sh:/entrypoint.sh:ro
+      - ./opensmtpd/credentials:/etc/mail/credentials:ro
+      - ./opensmtpd/smtpd.conf:/etc/mail/smtpd.conf
+      - ./opensmtpd/rspamd/keys:/etc/rspamd/keys
+      - ./dovecot/sockets:/var/dovecot/sockets
+      - ./shared/keys:/etc/ssl/private
+      - ./shared/certs:/etc/ssl/tls-certs
+      - ./shared/mail:/var/mail
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    depends_on:
+      - dovecot
+
+  # Dovecot
+  dovecot:
+    image: dovecot/dovecot
+    container_name: dovecot
+    restart: unless-stopped
+    ports:
+      - "143:143"      # IMAP
+      - "993:993"      # IMAPS（SSL/TLS）
+    env_file:
+      - ./dovecot/.env
+    volumes:
+      - ./dovecot/entrypoint.sh:/entrypoint.sh:ro
+      - ./dovecot/dovecot.conf:/etc/dovecot/dovecot.conf
+      - ./dovecot/sockets:/var/dovecot/sockets
+      - ./shared/keys:/etc/ssl/private:ro
+      - ./shared/certs:/etc/ssl/certs:ro
+      - ./shared/mail:/var/mail
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    depends_on:
+      - postgres
+
+  # PostgreSQL
+  postgres:
+    image: postgres:latest
+    container_name: postgres
+    restart: always
+    env_file:
+      - ./postgres/.env
+    volumes:
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./postgres/data:/var/lib/postgresql/data
+    ports:
+      - "6543:5432"
+
+  # Roundcube Webmail
+  webmail:
+    image: roundcube/roundcubemail:latest-fpm-alpine
+    container_name: webmail
+    restart: unless-stopped
+    env_file:
+      - ./webmail/.env
+    volumes:
+      - ./webmail/config.php:/var/roundcube/config/extra.php
+      - ./webmail/webroot:/var/www/html
+    ports:
+      - "8999:9000"
+    depends_on:
+      - dovecot
+
+  # Certbot
+  certbot:
+    build:
+      context: .
+      dockerfile: ./certbot/dockerfile
+      network: "host"
+    network_mode: "host"
+    container_name: certbot
+    restart: unless-stopped
+    volumes:
+      - ./certbot/entrypoint.sh:/entrypoint.sh:ro
+      - ./certbot/letsencrypt:/etc/letsencrypt
+      - ./certbot/webroot:/var/www/certbot
+      - ./shared/keys:/etc/letsencrypt/keys
+      - ./shared/certs:/etc/letsencrypt/live
+      - /var/run/docker.sock:/var/run/docker.sock
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]

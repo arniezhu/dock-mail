@@ -1,0 +1,11 @@
+.env
+opensmtpd/credentials
+opensmtpd/rspamd
+dovecot/sockets
+postgres/data
+certbot/letsencrypt
+certbot/webroot
+webmail/webroot
+shared/
+.DS_Store
+Thumbs.db

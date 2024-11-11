@@ -1,0 +1,52 @@
+FROM alpine:latest
+
+# Install necessary dependencies
+RUN apk update && \
+    apk add --no-cache \
+    opensmtpd rspamd su-exec \
+    openssl ca-certificates tzdata \
+    git go
+
+# Set up chroot environment for OpenSMTPD
+RUN mkdir -p /var/spool/smtpd && chmod 711 /var/spool/smtpd && \
+    mkdir -p /var/spool/smtpd/empty \
+             /var/spool/smtpd/control \
+             /var/spool/smtpd/queue \
+             /var/spool/smtpd/purge \
+             /var/spool/smtpd/run \
+             /var/spool/smtpd/dev \
+             /var/spool/smtpd/etc \
+             /var/spool/smtpd/lib && \
+    cp /etc/passwd /var/spool/smtpd/etc/passwd && \
+    cp /etc/group /var/spool/smtpd/etc/group && \
+    chown smtpq:root /var/spool/smtpd/purge && chmod 700 /var/spool/smtpd/purge && \
+    chown smtpq:root /var/spool/smtpd/queue && chmod 700 /var/spool/smtpd/queue && \
+    mknod /var/spool/smtpd/dev/null c 1 3 && chmod 666 /var/spool/smtpd/dev/null && \
+    mknod /var/spool/smtpd/dev/random c 1 8 && chmod 666 /var/spool/smtpd/dev/random && \
+    mknod /var/spool/smtpd/dev/urandom c 1 9 && chmod 666 /var/spool/smtpd/dev/urandom
+
+# Create directories for SSL certificates and set ownership to root
+RUN mkdir -p /etc/ssl/tls-certs \
+    /etc/ssl/private && \
+    chown root:root -R /etc/ssl/tls-certs && \
+    chown root:root -R /etc/ssl/private
+
+# Create vmail group and user
+RUN addgroup -g 1000 vmail && \
+    adduser -u 1000 -G vmail -s /sbin/nologin -D vmail
+
+# Grant vmail user access to shared mail directories
+RUN mkdir -p /var/mail && \
+    chown -R vmail:vmail /var/mail && \
+    chmod -R 750 /var/mail
+
+# Install filter-rspamd
+RUN git clone https://github.com/poolpOrg/filter-rspamd.git && \
+    cd filter-rspamd && \
+    go build && \
+    install -m 0555 filter-rspamd /usr/lib/opensmtpd/filter-rspamd && \
+    cd ../ && rm -rf filter-rspamd && \
+    apk del git go
+
+# Expose SMTP ports
+EXPOSE 25 587
