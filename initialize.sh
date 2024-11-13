@@ -22,9 +22,31 @@ DB_PASS=${DB_PASS:-"dockmail"}
 read -p "Enter your timezone (e.g., Asia/Shanghai) [default: UTC]: " TIMEZONE
 TIMEZONE=${TIMEZONE:-"UTC"}
 
-# Ensure DOMAIN and EMAIL are not empty
-if [ -z "$DOMAIN" ] || [ -z "$EMAIL" ]; then
-    echo -e "${RED}Error: Domain and email are required.${NC}"
+# Prompt user for server IP address
+DEFAULT_IP=$(wget -qO- https://ipinfo.io/ip || echo "")
+if [ -n "$DEFAULT_IP" ]; then
+    read -p "Enter the server IP address [default: $DEFAULT_IP]: " IP_ADDRESS
+else
+    read -p "Enter the server IP address: " IP_ADDRESS
+fi
+IP_ADDRESS=${IP_ADDRESS:-$DEFAULT_IP}
+
+# Ask if a relay server should be used
+read -p "Do you want to use a relay server? (y/N): " USE_RELAY
+
+# Prompt user for relay server details
+if [[ "$USE_RELAY" =~ ^[Yy]$ ]]; then
+    read -p "Enter the relay name (e.g., sendgrid): " RELAY_NAME
+    read -p "Enter the relay server (e.g., smtp.sendgrid.net): " RELAY_SERVER
+    read -p "Enter the relay port [default: 587]: " RELAY_PORT
+    RELAY_PORT=${RELAY_PORT:-"587"}
+    read -p "Enter the relay username: " RELAY_USERNAME
+    read -p "Enter the relay password: " RELAY_PASSWORD
+fi
+
+# Ensure DOMAIN, EMAIL, and IP_ADDRESS are not empty
+if [ -z "$DOMAIN" ] || [ -z "$EMAIL" ] || [ -z "$IP_ADDRESS" ]; then
+    echo -e "${RED}Error: Domain, email, and IP address are required.${NC}"
     exit 1
 fi
 
@@ -51,7 +73,16 @@ cp ./opensmtpd/.env.example ./opensmtpd/.env
 sed -i \
     -e "s|DOMAIN=example.com|DOMAIN=$DOMAIN|" \
     -e "s|TZ=UTC|TZ=$TIMEZONE|" \
+    -e "s|IP_ADDRESS=0.0.0.0|IP_ADDRESS=$IP_ADDRESS|" \
     ./opensmtpd/.env
+
+if [ -n "$RELAY_NAME" ]; then
+    echo "RELAY_NAME=$RELAY_NAME" >> ./opensmtpd/.env
+    echo "RELAY_SERVER=$RELAY_SERVER" >> ./opensmtpd/.env
+    echo "RELAY_PORT=$RELAY_PORT" >> ./opensmtpd/.env
+    echo "RELAY_USERNAME=$RELAY_USERNAME" >> ./opensmtpd/.env
+    echo "RELAY_PASSWORD=$RELAY_PASSWORD" >> ./opensmtpd/.env
+fi
 
 # Set Webmail environment variables
 cp ./webmail/.env.example ./webmail/.env

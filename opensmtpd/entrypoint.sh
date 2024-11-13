@@ -93,9 +93,20 @@ echo -e "@$DOMAIN\tvmail" > /etc/mail/users
 cat <<EOF >  /etc/mail/hostnames
 127.0.0.1	localhost
 $(hostname -i)	smtp.$DOMAIN
-$(wget -qO- https://ipinfo.io/ip)	smtp.$DOMAIN
+$IP_ADDRESS	smtp.$DOMAIN
 EOF
+
+# Define configuration file path
+CONFIG_FILE="/etc/mail/smtpd.conf"
+
+# Set up relay server information
+if [[ -n "$RELAY_NAME" && -n "$RELAY_SERVER" && -n "$RELAY_PORT" && -n "$RELAY_USERNAME" && -n "$RELAY_PASSWORD" ]]; then
+    echo -e "$RELAY_NAME\t$RELAY_USERNAME:$RELAY_PASSWORD" > /etc/mail/relay_auth
+    cp /etc/mail/smtpd.conf /etc/mail/smtpd_updated.conf
+    sed -i "s|\(action \"relay_auth\" relay helo-src <helo_table>\)|table relay_auth file:/etc/mail/relay_auth\n\1 host smtp+tls://$RELAY_NAME@$RELAY_SERVER:$RELAY_PORT auth <relay_auth>|" /etc/mail/smtpd_updated.conf
+    CONFIG_FILE="/etc/mail/smtpd_updated.conf"
+fi
 
 # Start OpenSMTPD
 echo "Start OpenSMTPD"
-exec smtpd -d -f /etc/mail/smtpd.conf #-T all
+exec smtpd -d -f "$CONFIG_FILE" #-T all
