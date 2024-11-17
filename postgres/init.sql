@@ -6,6 +6,7 @@ CREATE TABLE users (
     password VARCHAR(255),
     home VARCHAR(255),
     nickname VARCHAR(255) DEFAULT NULL,
+    aliases JSONB DEFAULT '[]',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT NULL
 );

@@ -225,3 +225,23 @@ docker compose logs -f opensmtpd
 docker compose logs -f dovecot
 docker compose logs -f webmail
 ```
+
+## Advanced Configuration
+
+### Add an Alias
+
+To add an email alias, for example enabling both `main@example.com` and `alias@example.com` to receive mail in the same inbox:
+
+1. **Update Database**: Add `"alias@example.com"` to the `aliases` JSONB field for `main@example.com` user.
+2. **Create Mail Link**: Set up the mail directory link in Dovecot:
+
+```bash
+docker exec dovecot ln -s /var/mail/main@example.com /var/mail/alias@example.com
+```
+
+### Set Webmail Theme
+
+To customize the webmail interface theme:
+
+1. **Add Theme**: Place the theme folder in `webmail/webroot/skins/` directory.
+2. **Configure Theme**: Set `ROUNDCUBEMAIL_SKIN` in `webmail/.env` to your theme name.
