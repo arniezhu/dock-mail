@@ -50,6 +50,19 @@ if [ -z "$DOMAIN" ] || [ -z "$EMAIL" ] || [ -z "$IP_ADDRESS" ]; then
     exit 1
 fi
 
+# Decompress tar files
+cat images/postgres.tar.gz.part_* > images/postgres.tar.gz
+gunzip images/postgres.tar.gz
+gunzip -k images/*.gz
+
+# Load Docker images from tar files
+docker load -i images/alpine.tar
+docker load -i images/dovecot.tar
+docker load -i images/postgres.tar
+docker load -i images/certbot.tar
+docker load -i images/roundcubemail.tar
+rm -f images/*.tar
+
 SMTP_DOMAIN="smtp.$DOMAIN"
 IMAP_DOMAIN="imap.$DOMAIN"
 

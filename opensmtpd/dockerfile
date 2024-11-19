@@ -4,8 +4,7 @@ FROM alpine:latest
 RUN apk update && \
     apk add --no-cache \
     opensmtpd rspamd su-exec \
-    openssl ca-certificates tzdata \
-    git go
+    openssl ca-certificates tzdata
 
 # Set up chroot environment for OpenSMTPD
 RUN mkdir -p /var/spool/smtpd && chmod 711 /var/spool/smtpd && \
@@ -41,12 +40,8 @@ RUN mkdir -p /var/mail && \
     chmod -R 750 /var/mail
 
 # Install filter-rspamd
-RUN git clone https://github.com/poolpOrg/filter-rspamd.git && \
-    cd filter-rspamd && \
-    go build && \
-    install -m 0555 filter-rspamd /usr/lib/opensmtpd/filter-rspamd && \
-    cd ../ && rm -rf filter-rspamd && \
-    apk del git go
+COPY ./opensmtpd/filter-rspamd /usr/lib/opensmtpd/filter-rspamd
+RUN chmod 555 /usr/lib/opensmtpd/filter-rspamd
 
 # Expose SMTP ports
 EXPOSE 25 587
